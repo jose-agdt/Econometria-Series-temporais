@@ -1,0 +1,470 @@
+---
+title: \large{\textbf{ECONOMETRIA DE SÉRIES TEMPORAIS - TRABALHO PRÁTICO}}
+author: \scriptsize{Jose Augusto Gouvea Dutra Teixeira}
+header-includes:
+   - \usepackage{titling}
+   - \pretitle{\begin{center}\small\includegraphics[height=1.2cm]{/cloud/project/ibmecLogo.png}\\[\bigskipamount]}
+   ####ATENÇÃO: Coloquei a logomarca da minha faculdade no cabeçalho, para rodar esse arquivo sem mensagem de erro então é necessario ter uma imagem com nome "ibmecLogo.png"
+   - \posttitle{\end{center}}
+   - \usepackage{multirow}
+   - \usepackage{amsmath}
+urlcolor: blue
+output: 
+  pdf_document
+references:
+- id: tsay2014introduction
+  title: An introduction to analysis of financial data with R
+  author:
+  - family: Tsay
+    given: Ruey S
+  publisher: John Wiley \& Sons
+  type: book
+  issued:
+    year: 2014
+- id: engle1982autoregressive
+  title: Autoregressive conditional heteroscedasticity with estimates of the variance of United Kingdom inflation
+  author:
+  - family: Engle
+    given: Robert F
+  publisher: Econometrica Journal of the Econometric Society
+  type: article
+  issued:
+    year: 1982
+- id: dickey1979distribution
+  title: Distribution of the estimators for autoregressive time series with a unit root
+  author:
+  - family: Dickey
+    given: David A
+  - family: Fuller
+    given: Wayne A
+  volume: 74
+  issue: 366a
+  publisher: Journal of the American statistical association
+  page: 427-431
+  type: article-journal
+  issued:
+    year: 1979
+---
+  
+Este trabalho tem como objetivo colocar em prática os modelos de séries temporais univariadas **AR(p)**, **MA(q)**, **ARMA(p,q)**, **ARCH(m)** e **GARCH(m,n)** em uma série temporal de retornos de um ativo financeiro. 
+
+Suponha que $r_{t}$ é o logaritmo do retorno de um ativo financeiro em $t$  e que $\left\{r_{t}\right\}_{t=1}^{T}$ é a série temporal do logaritmo de $T$ retornos. Como sabemos, para modelar tal série temporal, temos duas equações que precisam ser estimadas: a média condicional e a variância condicional. Para a equação da média condicional, podemos assumir um modelo $ARMA(p,q)$, neste formato:
+  
+$$
+\begin{aligned}
+&&& r_{t} = \mu_{t} + a_{t} \\
+&&& \mu_{t} = \phi_{0} + \sum_{i=1}^{p}{\phi_{i}r_{t-i}} + \sum_{j=1}^{q}{\theta_{j}a_{t-j}}
+\end{aligned}
+$$
+  
+  Já para a variância condicional, temos a equação abaixo:
+  
+$$
+\begin{aligned}
+&&& a_{t}=\sigma_t\epsilon_t \\
+&&& \sigma_{t}^{2} = \alpha_{0} + \sum_{i=1}^{m}{}\alpha_{i}a_{t-i}^{2}+\sum_{j=1}^{n}{\beta_j\sigma^{2}_{t-j}}
+\end{aligned}
+$$
+  
+onde, $\left\{\epsilon_t \right\}_{t=1}^{t}$ é uma sequência de variáveis aleatórias independente e identicamente distribuídas (iid) com média $0$ e variância $1$, $\alpha_{0}>0$, $\alpha_{i}\geq 0$, $\beta_{j}\geq 0$ para $i>0$ e $j>0$. Além disso, $\sum_{i=1}^{max(m,n)}{(\alpha_i+\beta_i)<1}$ que garante que a variância incondicional de $a_t$ é finita. Podemos assumir que $\epsilon_t$ segue uma distribuição Normal, t-Student ou outra de interesse. Em algumas aplicações, podemos usar também distribuições assimétricas para $\epsilon_t$. Observe que se $n=0$ a equação da variância condicional se comporta como um modelo $ARCH(m)$.
+
+##### **PROCESSO DE ANÁLISE**
+
+1. Especificar a equação para a média condicional ($\mu_{t}$):
+* Visualizar os dados e identificar observações fora do padrão (*outliers* ou dados faltantes) e eliminá-las.
+* Se necessário, transformar os dados para estabilizar a variância (logaritmo dos dados, variação ou retorno, por exemplo)
+* Testar se os dados são estacionários. Caso tenha raiz unitária é preciso diferenciar os dados até se tornarem estacionários. Para isso, testa-se novamente se a série diferenciada se tornou estacionária.
+* Examinar as funções de autocorrelação (FAC) e autocorrelação parcial (FACP) para determinar as ordens máximas $P$ e $Q$ para os componentes AR e MA da série estacionária (diferenciada, se necessário).
+* Estimar todas as combinações para $p$, $d$ e $q$. Aqui, $d$ será fixo e igual ao número de vezes necessárias para tornar a série original estacionáira. Se não foi preciso diferenciar a série, $d=0$.
+* Escolher dentre todos os modelos estimados no passo anterior, o modelo com menor AIC e/ou BIC.
+* Examinar se os resíduos se comportam como um ruído branco:
+* Testar autocorrelação nos resíduos: visualizar a função de autocorrelação (FAC) dos resíduos. Se existem defasagens estatisticamente significante (acima da linha pontilhada), há autocorrelação serial.
+* Testar heterocedasticidade condicional: visualizar a função de autocorrelação (FAC) dos resíduos ao quadrado. Se existem defasagens estatisticamente significante (acima da linha pontilhada), há heterocedasticidade condicional. Outra alternativa é o teste LM de @engle1982autoregressive.
+* Verificar a distribuição de probabilidade assumida no processo de estimação: realizar teste que verifique se os resíduos se comportam de acordo com a distribuição de probabilidade adotada.
+* Se os resíduos são bem comportados (ruído branco), **obter as previsões apenas com a estimação da média condicional**. Caso contrário, revisar os passos anteriores para certificar que foram realizados corretamente. Se mesmo assim existir heterocedasticidade condicional e a distribuição de probabilidade não condiz com a hipótese assumida (geralmente uma distribuição Normal), **avançar para o próximo passo e estimar a variância condicional também**. 
+2. Especificar um modelo de volatilidade e estimar **conjuntamente** as equações da média e variância condicional:
+  * Examinar as funções de autocorrelação (FAC) e autocorrelação parcial (FACP) dos resíduos ao quadrado **(obtidos da estimação da média condicional)** para determinar as ordens máximas $M$ e $N$ para os componentes ARCH e GARCH, respectivamente.
+* Examinar o histograma dos resíduos juntamente com a densidade das distribuições Normal e t-Student para determinar qual a melhor distribuição se ajusta aos dados. Outras distribuições de probabilidade também podem ser usadas, tal como a [Cauchy](https://pt.wikipedia.org/wiki/Distribui%C3%A7%C3%A3o_de_Cauchy). Além disso, você pode usar a versão assimétrica destas distribuições caso perceba assimetria no histograma dos resíduos.
+* Estimar todas as combinações para $m=1,..,M$ e $n=0,...,N$ para a variância condicional juntamente com a especificação ARMA(p,q) escolhida no passo 1
+* Escolher o modelo com menor AIC e/ou BIC
+3. Verificar o modelo estimado 
+* Avaliar o gráfico da função de autocorrelação do quadrado dos resíduos padronizados estimados no passo 2. O ideal é que as defasagens não ultrapassem a linha pontilhada.
+* Avaliar se as restrições impostas sobre os parâmetros são atendidas
+* Testar se os resíduos padronizados se comportam conforme a hipóte de distribuição de probabilidade assumida no passo 2 no momento de estimar conjuntamente a média condicional e a variância condicional.
+4. Visualizar os resultados
+* Gráfico da volatilidade condicional
+
+\break 
+
+##### **RESULTADOS**
+
+A ação `NVDA` da  Nvidia Corporation S.A. negociada na NasdaqGS  foi escolhida e o período de análise é de 01-01-2010 até `r format(Sys.Date(), format = "%d-%m-%Y")`. Seguindo o processo proposto, temos os seguintes resultados:
+  
+```{r, echo=FALSE, include=FALSE}
+#####
+##   PACOTES NECESSÁRIOS
+#####
+
+source("/cloud/project/install_and_load_packages.R")
+
+```
+
+1. Especificar a equação para a média condicional ($\mu_{t}$):
+  
+* O gráfico abaixo mostra a série temporal da `NVDA`. É possível perceber que não existe dados faltantes na série e as mudanças abruptas nos preços está condizente com acontecimentos de mercado, tais como a piora recente devido a incerteza quanto a "guerra comercial" entre China e Estados Unidos. Desta forma, optou-se por não eliminar qualquer observação da série temporal
+
+```{r echo=FALSE, fig.height=5, fig.width=10, message=FALSE, warning=FALSE}
+#####
+##   NVIDIA(NVDA)
+#####
+
+# Dados da ação NVDA desde 01/01/2010
+price_day <- quantmod::getSymbols("NVDA", src = "yahoo", from = '2010-01-01')
+log_day_return <- na.omit(PerformanceAnalytics::Return.calculate(NVDA$NVDA.Close, method = "log"))
+
+# Gráfico dos preços
+plot.xts(NVDA$NVDA.Close, main = "Preços da NVDA", xlab = "tempo", ylab = "preços")
+```
+
+* Como sabemos, os retornos financeiros raramente apresentam tendência ou sazonalidade, com exceção eventualmente de retornos intradiários que não é o caso da série temporal em análise. Além disso, a série temporal de retornos é estacionária dado que na maioria das vezes os retornos oscilam entre $-1$ e $1$. Em função dessas características, optamos por usar a série temporal dos retornos da `NVDA` que permitirá estabilizar a variância dos dados e diminuir a chance de existência de raíz unitária. O gráfico abaixo mostra a série temporal dos retornos da `NVDA`:
+  
+```{r echo=FALSE, fig.height=5, fig.width=10, message=FALSE, warning=FALSE}
+
+ # Gráfico dos retornos
+plot.xts(log_day_return, main = "Retornos da NVDA", xlab = "tempo", ylab = "retorno")
+```
+* Apesar de visualmente a série temporal dos retornos ser aparentemente estacionária, precisamos realizar um teste estatístico que confirme tal suposição. A tabela abaixo apresenta os resultados do teste de raíz unitária proposto por @dickey1979distribution para cada possível especificação (passeio aleatório, passeio aleatório com drift e passeio aleatório com drift e tendência). Os resultados confirmam nossa suposição de estacionariedade dado que rejeitamos a hipótese nula de presença de raiz unitária (não estacionária) ao nível de significância de 5% (p-valor < 0.05)
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, fig.height=5, fig.width=9}
+# Aqui, usamos a função adfTest do pacote fUnitRoots para testar se há raiz unitária
+# na série temporal avaliada. Como observamos no gráfico da série, não há tendência
+# nos dados e assim o teste verificará se a série se comporta como um passeio aleatório
+# sem drift. Isto é possível por meio da opção type que tem as seguintes alternativas:
+# - nc: for a regression with no intercept (constant) nor time trend (passeio aleatório)
+# - c: for a regression with an intercept (constant) but no time trend (passeio aleatório com drift)
+# - ct: for a regression with an intercept (constant) and a time trend (passeio aleatório com constante e tendência)
+# Além disso, definimos que no máximo duas defasagens da série devem ser usadas como
+# variáveis explicativas da regressão do teste. As hipóteses do teste são:
+# - H0: raiz unitária (passeio aleatório)
+# - H1: sem raiz unitária (não é um passeio aleatório)
+unitRootnc <- fUnitRoots::adfTest(log_day_return, lags = 2, type=c("nc"))
+unitRootc <- fUnitRoots::adfTest(log_day_return, lags = 2, type=c("c"))
+unitRootct <- fUnitRoots::adfTest(log_day_return, lags = 2, type=c("ct"))
+```
+
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{lll}
+\hline
+\multicolumn{1}{c}{Especificação}       & \multicolumn{1}{c}{Estatística do Teste} & \multicolumn{1}{c}{P-valor} \\ \hline
+Passeio Aleatório                       & `r round(unitRootnc@test$statistic,4)`   & `r round(unitRootnc@test$p.value,4)`                            \\
+Passeio Aleatório com drift             & `r round(unitRootc@test$statistic,4)`    & `r round(unitRootc@test$p.value,4)`                            \\
+Passeio Aleatório com drift e tendência & `r round(unitRootct@test$statistic,4)`   & `r round(unitRootct@test$p.value,4)`                            \\ \hline
+\end{tabular}
+\end{table}
+
+* Com a série temporal dos retornos (sem diferenciação em função da estacionariedade da mesma), examinamos os gráficos da função de autocorrelação (FAC) e da função de autocorrelação parcial (FACP) abaixo. Como resultado temos que nenhuma defasagem $p$ e $q$ foi encontrada analisando a FACP e FAC, respectivamente. Assim, nosso equação da média condicional terá apenas um intercepto, ou seja, sem parâmetros para a parte AR e MA do modelo ARMA(p,q).
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, fig.height=6, fig.width=9}
+# Função de autocorrelação
+acf_arma <- stats::acf(log_day_return, na.action = na.pass, plot = FALSE, lag.max = 15)
+
+# Função de autocorrelação parcial
+pacf_arma <- stats::pacf(log_day_return, na.action = na.pass, plot = FALSE, lag.max = 15)
+
+# Gráficos 
+par(mfrow=c(2,1))
+plot(acf_arma, main = "", ylab = "", xlab = "Defasagem")
+title("Função de Autocorrelação (FAC)", adj = 0.5, line = 1)
+plot(pacf_arma, main = "", ylab = "", xlab = "Defasagem")
+title("Função de Autocorrelação Parcial (FACP)", adj = 0.5, line = 1)
+```
+
+* Caso fosse encontrado valores para $p$ e $q$ diferentes dos anteriores, deveríamos estimar todas as combinações para $p$, $d$ e $q$. Aqui, $d$ será fixo e igual ao número de vezes necessárias para tornar a série original estacionáira. Como não foi preciso diferenciar a série dos retornos da `NVDA`, $d=0$.
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, results = 'asis'}
+# Todas as combinações possíveis de p=0 até p=max e q=0 até q=max
+pars <- expand.grid(ar = 0:0, diff = 0, ma = 0:0)
+
+# Local onde os resultados de cada modelo será armazenado
+modelo <- list()
+
+# Estimar os parâmetros dos modelos usando Máxima Verossimilhança (ML)
+for (i in 1:nrow(pars)) {
+  modelo[[i]] <- arima(log_day_return, order = unlist(pars[i, 1:3]), method = "ML")
+}
+
+# Obter o logaritmo da verossimilhança (valor máximo da função)
+log_verossimilhanca <- list()
+for (i in 1:length(modelo)) {
+  log_verossimilhanca[[i]] <- modelo[[i]]$loglik
+}
+
+# Calcular o AIC
+aicarma <- list()
+for (i in 1:length(modelo)) {
+  aicarma[[i]] <- stats::AIC(modelo[[i]])
+}
+
+# Calcular o BIC
+bicarma <- list()
+for (i in 1:length(modelo)) {
+  bicarma[[i]] <- stats::BIC(modelo[[i]])
+}
+
+# Quantidade de parâmetros estimados por modelo
+quant_parametros <- list()
+for (i in 1:length(modelo)) {
+  quant_parametros[[i]] <- length(modelo[[i]]$coef)+1 # +1 porque temos a variância do termo de erro 
+}
+
+# Montar a tabela com os resultados
+especificacao <- paste0("arma",pars$ar,pars$diff,pars$ma)
+tamanho_amostra <- rep(length(log_day_return), length(modelo))
+resultado_arma <- data.frame(especificacao, ln_verossimilhanca = unlist(log_verossimilhanca),
+                             quant_parametros = unlist(quant_parametros),
+                             tamanho_amostra, aic = unlist(aicarma), 
+                             bic = unlist(bicarma), stringsAsFactors = FALSE)
+
+# Adicionar a tabela no PDF
+tabelapdf <- xtable(resultado_arma, align = "lcccccc", digits = c(0,0,3,0,0,3,3))
+print(tabelapdf, comment = FALSE)
+```
+
+* Como temos apenas um modelo estimado, não precisamos escolher o modelo com menor AIC e/ou BIC e continuaremos com o modelo $ARMA(0,0)$ e a equação da média condicional será:
+
+$$
+\begin{aligned}
+&&& r_{t} = \mu_{t} + a_{t} \\
+&&& \mu_{t} = \phi_{0} 
+\end{aligned}
+$$
+  
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+# Como resultado temos que o modelo escolhido tanto pelo AIC quanto pelo BIC é  o ARMA(0,0)
+media_condicional <- arima(log_day_return, order = c(0,0,0), method = "ML")
+```
+
+
+
+A tabela abaixo mostra o resultado para a estimação de tal equação. É possível observar que o parâmetro $\phi_{0}$ estimado não é estatisticamente significante. Isso já é esperado pela característica de uma série temporal de retornos. 
+
+Observe a legenda mostrada para cada `*` que nos diz que quanto maior a quantidade de `*` menor o p-valor e maior a probabilidade de reijeitar a hipótese nula do teste t de Student. Quando não há `*` para um coeficiente, quer dizer que seu p-valor é maior do que os apresentados na legenda, ou seja, não conseguimos rejeitar a hipótese nula. Caso queira visualizar o p-valor para cada parâmetro, use a função `lmtest::coeftest()`.
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE, results = 'asis'}
+# Parâmetros estimados. Aqui, usamos a função stargazer do pacote stargazer para 
+# mostrar os resultados em um formato textual mais amigável para interpretação.
+# Mais detalhes? Use help("stargazer")
+stargazer::stargazer(media_condicional, type = "latex", header = FALSE, title = "Resultado Estimação modelo ARMA(0,0)")
+```
+
+* Examinar se os resíduos se comportam como um ruído branco:
+  
+  No processo de definição do modelo $ARMA(p,q)$ assumimos que o termo de erro $a_t$ não é autocorrelacionado, ou seja, $E\left[ \left(a_t-\bar{a}\right)\left(a_{t-1}-\bar{a}\right)\right]=E[a_{t}a_{t-1}]=0$. Como teste para verificar a validade de tal hipótese, temos abaixo o gráfico da função de autocorrelação (FAC) dos resíduos (nossa estimativa para o termo de erro) e encontramos que não há presença de autocorrelação serial dado que a grande maioria das defasagens não são estatisticamente significantes.
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.height=4, fig.width=9}
+# Verificar a existência de autocorrelação serial nos resíduos
+acf_residuals <- acf(media_condicional$residuals, na.action = na.pass, plot = FALSE, lag.max = 20)
+plot(acf_residuals, main = "", ylab = "", xlab = "Defasagem")
+title("FAC dos resíduos do ARMA(0,0)", adj = 0.5, line = 1)
+```
+
+Porém, quando avaliamos o gráfico da função de autocorrelação (FAC) do quadrado dos resíduos abaixo, observamos que existem defasagens estatisticamente significante (acima da linha pontilhada). Isso confirma a presença de heterocedasticidade condicional assim como um teste LM de @engle1982autoregressive caso realizado.  
+
+Isso não condiz com a hipótese assumida na definição do modelo $ARMA(p,q)$ de que a variância do termo de erro é contante e independente do tempo, ou seja, que $Var(a_t) = \sigma_{a}^{2}$.
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.height=4, fig.width=9}
+# Verificar a existência de autocorrelação serial nos resíduos
+acf_residuals_square <- acf(media_condicional$residuals^2, na.action = na.pass, plot = FALSE, lag.max = 20)
+plot(acf_residuals_square, main = "", ylab = "", xlab = "Defasagem")
+title("FAC do quadrado dos resíduos do ARMA(0,0)", adj = 0.5, line = 1)
+```
+
+Por fim, precisamos avaliar se os resíduos do modelo estimado são normalmente distribuídos, pois na definição do modelo $ARMA(p,q)$ assumimos que $a_t$ é independente e identicamente distribuído (iid) e quando executamos a estimação no R por meio da função `arima` assumimos, por default, que $a_t$ segue uma distribuição Normal.
+
+A tabela abaixo mostra o resultado para os testes de [Shapiro-Wilk](https://en.wikipedia.org/wiki/Shapiro%E2%80%93Wilk_test) e [Jarque Bera](https://en.wikipedia.org/wiki/Jarque%E2%80%93Bera_test). A hipótese nula dos testes é que a amostra provém de **uma população Normal** contra a hipótese alternativa que a amostra **não provém de uma população Normal**. Como o p-valor de ambos os testes é praticamente nulo (o R arredondou), rejeitamos e hipótese nula e os resíduos obtidos da estimação da equação da média condicional não são provenientes de uma população Normal. 
+
+A presençca de [fatos estilizados](https://rpubs.com/hudsonchavs/timeseries1) em séries temporais financeiros (como o retorno de um ativo financeiro) gera tais inconsistências, principalmente a presença de heterocedasticidade condicional. Desta forma, não podemos assumir que apenas a estimação da equação da média condicional é o suficiente para a série da `NVDA` e precisamos estimar a variância condicional também.  
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+# Teste de Normalidade dos resíduos. As hipóteses para os dois testes são:
+#  - H0: resíduos normalmente distribuídos
+#  - H1: resíduos não são normalmente distribuídos
+shapiro_test <- stats::shapiro.test(na.remove(media_condicional$residuals))
+jarque_bera <- tseries::jarque.bera.test(na.remove(media_condicional$residuals))
+```
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{lll}
+\hline
+\multicolumn{1}{c}{Teste de Normalidade}       & \multicolumn{1}{c}{Estatística do Teste} & \multicolumn{1}{c}{P-valor} \\ \hline
+Shapiro                       & `r round(shapiro_test$statistic,4)`   & `r round(shapiro_test$p.value,4)`                            \\
+Jarque Bera             & `r round(jarque_bera$statistic,4)`    & `r round(jarque_bera$p.value,4)`                            \\ \hline
+\end{tabular}
+\end{table}
+
+2. Especificar um modelo de volatilidade e estimar **conjuntamente** as equações da média e variância condicional:
+  
+* Precisamos examinar as funções de autocorrelação (FAC) e autocorrelação parcial (FACP) dos resíduos ao quadrado **(obtidos da estimação da média condicional)** para determinar as ordens máximas $M$ e $N$ para os componentes ARCH e GARCH, respectivamente. Como resultado, temos abaixo tais gráficos e optamos por $M=3$ e $N=5$ (não faz sentido escolher N muito grande).
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, fig.height=6, fig.width=9}
+# FAC dos resíduos ao quadrado
+acf_residuals_square <- acf(media_condicional$residuals^2, na.action = na.pass, plot = FALSE, lag.max = 20)
+
+# FACP dos resíduos ao quadrado
+pacf_residuals_square <- stats::pacf(media_condicional$residuals^2, plot = FALSE, na.action = na.pass, max.lag = 25)
+
+# Gráficos 
+par(mfrow=c(2,1))
+plot(acf_residuals_square, main = "", ylab = "", xlab = "Defasagem")
+title("FAC do quadrado dos resíduos do ARMA(0,0)", adj = 0.5, line = 1)
+plot(pacf_residuals_square, main = "", ylab = "", xlab = "Defasagem")
+title("FACP do quadrado dos resíduos do ARMA(0,0)", adj = 0.5, line = 1)
+```
+
+* Antes de executarmos a estimação em conjunto das equações para a média condicional e variância condicional, precisamos examinar o histograma dos resíduos juntamente com a densidade das distribuições Normal e t-Student para determinar qual a melhor distribuição se ajusta aos dados. Como resultado temos o gráfico abaixo e percebemos que a distribuição t-Student se adequa melhor aos dados e será usada no processo de estimação pelo método de máxima verossimilhança. 
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, fig.height=5, fig.width=9}
+# Verificar qual distribuição de probabilidade melhor se assemelha aos resíduos da média condicional
+# Este é um passo importante para o restante da análise. Precisamos garantir que distribuição de 
+# probabilidade usada no processo de estimação por meio de máxima verossimilhança faça uso da correta
+# distribuição. Assim, comparamos graficamente os resíduos obtidos pela estimação da média condicional
+# com duas distribuições de probabilidade (Normal e t-Student). A comparação feita aqui não considera
+# assimetria e em função disso, caso você perceba a existência de assimetria, você deve escolher a 
+# distribuição que mais se assemelha aos dados, mas optar pela sua versão com assimetria no momento
+# que for estimar o modelo arma-garch conjuntamente. Como resultado, temos que a distribuição t-Student
+# é a melhor escolha. 
+
+symmetric_normal = stats::density(stats::rnorm(length(media_condicional$residuals), 
+                                               mean = mean(media_condicional$residuals), 
+                                               sd = sd(media_condicional$residuals)))
+
+symmetric_student = stats::density(fGarch::rstd(length(media_condicional$residuals), 
+                                                mean = mean(media_condicional$residuals), 
+                                                sd = sd(media_condicional$residuals),
+                                                nu = PerformanceAnalytics::kurtosis(media_condicional$residuals, method = "moment")))
+
+hist(media_condicional$residuals, n = 25, probability = TRUE, border = "white", col = "steelblue",
+     xlab = "Resíduos estimados pela média condicional", ylab = "Densidade", 
+     main = "Comparativo da distribuição dos resíduos")
+lines(symmetric_normal, lwd = 3, col = 2)
+lines(symmetric_student, lwd = 2, col = 1)
+legend("topleft", legend = c("Normal", "t-Student"), col = c("red", "black"), lwd = c(3,2))
+
+```
+
+\break 
+
+* Uma vez que definimos as ordens máximas para $M$ e $N$ bem como a distribuição de probabilidade que melhor se "assemelha" aos resíduos, podemos estimar todas as combinações para $m=1,..,M$ e $n=0,...,N$ para a variância condicional juntamente com a especificação ARMA(p,q) escolhida no passo 1. Como é possível observar na tabela abaixo o modelo com menor AIC e BIC é o $ARMA(0,0)-GARCH(1,1)$.
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, results = 'asis'}
+# Todas as combinações possíveis de m=1 até m=max e n=0 até n=max
+pars_arma_garch <- expand.grid(m = 1:3, n = 0:5)
+
+# Local onde os resultados de cada modelo será armazenado
+modelo_arma_garch <- list()
+
+# Especificação arma encontrada na estimação da média condicional
+arma_set <- "~arma(0,0)"
+
+# Distribuição de probabilidade assumida para o termo de erro da média condicional 
+# - norm: normal, std: t-student, snorm: normal assimétrica, sstd: t-student assimétrica
+arma_residuals_dist <- "std"
+
+# Definição se o processo estimará parâmetros de assimetria e curtose para a distribuição
+include.skew = FALSE
+include.shape = TRUE
+
+# Estimar os parâmetros dos modelos usando Máxima Verossimilhança (ML)
+for (i in 1:nrow(pars_arma_garch)) {
+  modelo_arma_garch[[i]] <- fGarch::garchFit(as.formula(paste0(arma_set,"+","garch(",pars_arma_garch[i,1],",",pars_arma_garch[i,2], ")")),
+                                             data = log_day_return, trace = FALSE, cond.dist = arma_residuals_dist,
+                                             include.skew = include.skew, include.shape = include.shape) 
+}
+
+# Obter o logaritmo da verossimilhança (valor máximo da função)
+log_verossimilhanca_arma_garch <- list()
+for (i in 1:length(modelo_arma_garch)) {
+  log_verossimilhanca_arma_garch[[i]] <- modelo_arma_garch[[i]]@fit$llh
+}
+
+# Calcular o AIC
+aicarma_garch <- list()
+for (i in 1:length(modelo_arma_garch)) {
+  aicarma_garch[[i]] <- modelo_arma_garch[[i]]@fit$ics[1]
+}
+
+# Calcular o BIC
+bicarma_garch <- list()
+for (i in 1:length(modelo_arma_garch)) {
+  bicarma_garch[[i]] <- modelo_arma_garch[[i]]@fit$ics[2]
+}
+
+# Quantidade de parâmetros estimados por modelo
+quant_paramentros_arma_garch <- list()
+for (i in 1:length(modelo_arma_garch)) {
+  quant_paramentros_arma_garch[[i]] <- length(modelo_arma_garch[[i]]@fit$coef)
+}
+
+# Montar a tabela com os resultados
+especificacao <- paste0(arma_set,"-","garch",pars_arma_garch$m,pars_arma_garch$n)
+tamanho_amostra <- rep(length(log_day_return), length(modelo_arma_garch))
+resultado_arma_garch <- data.frame(especificacao, ln_verossimilhanca = unlist(log_verossimilhanca_arma_garch),
+                                   quant_paramentros = unlist(quant_paramentros_arma_garch),
+                                   tamanho_amostra, aic = unlist(aicarma_garch), bic = unlist(bicarma_garch),
+                                   stringsAsFactors = FALSE, row.names = NULL)
+
+# Adicionar a tabela no PDF
+tabelapdf_arma_garch <- xtable(resultado_arma_garch, align = "lcccccc", digits = c(0,0,3,0,0,3,3))
+print(tabelapdf_arma_garch, comment = FALSE)
+
+```
+
+Na tabela 2 temos os resultados dos parâmetros estimados para o modelo escolhido. Observe que temos uma estimativa para a curtose da distribuição assumida (parâmetro `shape`). Tal estimativa está bem próxima do valor obtido quando calculamos a curtose da série temporal dos resíduos obtidos na estimação da média condicional apenas. 
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE, results = 'asis'}
+# Parâmetros estimados. Aqui, usamos a função stargazer do pacote stargazer para 
+# mostrar os resultados em um formato textual mais amigável para interpretação.
+# Mais detalhes? Use help("stargazer")
+stargazer::stargazer(modelo_arma_garch[[4]], type = "latex", header = FALSE, title = "Resultado Estimação modelo ARMA(0,0)-GARCH(1,1)")
+```
+
+3. Verificar o modelo estimado 
+
+* Uma vez definido o modelo, precisamos avaliar se ele continua com heterocedasticidade condicional. Se nosso modelo realmente controlou a heterocedasticidade condicional, não deveríamos ter defasagens no gráfico da FAC dos resíduos ao quadrado ultrapassando a linha pontilhada. O gráfico abaixo confima que não há heterocedasticidade condicional nos resíduos do modelo $ARMA(0,0)-GARCH(1,1)$. 
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, fig.height=6, fig.width=9}
+
+# FAC dos resíduos ao quadrado
+acf_residuals_square_arma_garch <- acf(fGarch::residuals(modelo_arma_garch[[4]], standardize = TRUE)^2, na.action = na.pass, plot = FALSE, lag.max = 20)
+
+# Gráficos 
+plot(acf_residuals_square_arma_garch, main = "", ylab = "", xlab = "Defasagem")
+title("FAC do quadrado dos resíduos do ARMA(0,0)-GARCH(1,1)", adj = 0.5, line = 1)
+```
+
+* Como é possível observar nos resultados obtidos para os parâmetros do modelo. As restrições sobre os mesmos são mantidas, pois os valores obtidos para $\alpha_0$, $\alpha_1$ e $\beta_1$ condizem com as restrições.
+
+
+4. Visualizar os resultados
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, fig.height=4, fig.width=9}
+plot(modelo_arma_garch[[4]], which = 3)
+```
+
+5. Obter as previsões 
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, results='asis'}
+# usar a função predict do pacote fGarch para faze a previsão 3 passos à frente usando o modelo escolhido anteriormente
+forecast <- fGarch::predict(modelo_arma_garch[[4]], n.ahead = 3)
+stargazer::stargazer(forecast, summary = FALSE, type = "latex", header = FALSE)
+```
+
+##### **REFERÊNCIAS**
+
+
+
+
+
